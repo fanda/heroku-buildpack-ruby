@@ -107,7 +107,7 @@ private
     @ruby_version_run = true
 
     bootstrap_bundler do |bundler_path|
-      old_system_path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
+      old_system_path = "/usr/local/rvm/rubies/ruby-1.9.3-p125/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
       @ruby_version = run_stdout("env PATH=#{old_system_path}:#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
     end
 
