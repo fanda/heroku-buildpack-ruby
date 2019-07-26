@@ -132,7 +132,7 @@ private
   # @return [Array] list of Strings of the ruby versions available
   def ruby_versions
     @ruby_versions ||= begin
-      Dir["/path/to/search/**/*.rb"].map {|f| f.sub(".#{RUBY_PKG_EXTENSION}", '') }
+      Dir["#{VENDOR_URL}/*"].map {|f| f.sub(".#{RUBY_PKG_EXTENSION}", '') }
     end
   end
 
@@ -154,12 +154,6 @@ private
     set_env_override "PATH",     "$HOME/bin:$HOME/#{slug_vendor_base}/bin:$PATH"
   end
 
-  # determines if a build ruby is required
-  # @return [Boolean] true if a build ruby is required
-  def build_ruby?
-    @build_ruby ||= false
-  end
-
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
@@ -170,14 +164,7 @@ Invalid RUBY_VERSION specified: #{ruby_version}
 Valid versions: #{ruby_versions.join(", ")}
 ERROR
 
-    if build_ruby?
-      FileUtils.mkdir_p(build_ruby_path)
-      Dir.chdir(build_ruby_path) do
-        ruby_vm = "ruby"
-        run("tar xvfj #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}")
-      end
-      error invalid_ruby_version_message unless $?.success?
-    end
+    ruby_vm = "ruby"
 
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
@@ -200,9 +187,7 @@ ERROR
   # @return [String] resulting path or empty string if ruby is not vendored
   def ruby_install_binstub_path
     @ruby_install_binstub_path ||=
-      if build_ruby?
-        "#{build_ruby_path}/bin"
-      elsif ruby_version
+      if ruby_version
         "#{slug_vendor_ruby}/bin"
       else
         ""
