@@ -171,7 +171,7 @@ ERROR
       puts "Get Ruby in: #{VENDOR_URL}"
       run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}  -s -o - | tar xvfj -")
     end
-    error invalid_ruby_version_message unless $?.success?
+    # error invalid_ruby_version_message unless $?.success?
 
     bin_dir = "bin"
     FileUtils.mkdir_p bin_dir
