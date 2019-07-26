@@ -167,6 +167,7 @@ ERROR
     ruby_vm = "ruby"
 
     FileUtils.mkdir_p(slug_vendor_ruby)
+    binding.pry
     Dir.chdir(slug_vendor_ruby) do
       run("tar xvfj #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}")
     end
