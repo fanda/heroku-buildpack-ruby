@@ -7,7 +7,7 @@ Encoding.default_external = Encoding::UTF_8 if defined?(Encoding)
 
 # abstract class that all the Ruby based Language Packs inherit from
 class LanguagePack::Base
-  VENDOR_URL = "vendor"
+  VENDOR_URL = "file://#{File.dirname(__FILE__)}../../vendor"
 
   attr_reader :build_path, :cache_path
 
@@ -221,4 +221,6 @@ private ##################################
     FileUtils.mkdir_p File.dirname(to)
     system("cp -a #{from}/. #{to}")
   end
+
 end
+
