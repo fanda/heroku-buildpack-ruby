@@ -7,7 +7,7 @@ require "language_pack/base"
 class LanguagePack::Ruby < LanguagePack::Base
   LIBYAML_VERSION     = "0.1.4"
   LIBYAML_PATH        = "libyaml-#{LIBYAML_VERSION}"
-  BUNDLER_VERSION     = "1.2.0"
+  BUNDLER_VERSION     = "2.0.2"
   BUNDLER_GEM_PATH    = "bundler-#{BUNDLER_VERSION}"
   NODE_VERSION        = "0.4.7"
   NODE_JS_BINARY_PATH = "node-#{NODE_VERSION}"
@@ -211,8 +211,7 @@ ERROR
     FileUtils.mkdir_p(slug_vendor_base)
     Dir.chdir(slug_vendor_base) do |dir|
       gems.each do |gem|
-        #run("curl #{VENDOR_URL}/#{gem}.tgz -s -o - | tar xzf -")
-        run("gem install bundler")
+        run("curl #{VENDOR_URL}/#{gem}.tgz -s -o - | tar xzf -")
       end
       Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
