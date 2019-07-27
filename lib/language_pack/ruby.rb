@@ -211,7 +211,8 @@ ERROR
     FileUtils.mkdir_p(slug_vendor_base)
     Dir.chdir(slug_vendor_base) do |dir|
       gems.each do |gem|
-        run("curl #{VENDOR_URL}/#{gem}.tgz -s -o - | tar xzf -")
+        #run("curl #{VENDOR_URL}/#{gem}.tgz -s -o - | tar xzf -")
+        run("gem install bundler")
       end
       Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
