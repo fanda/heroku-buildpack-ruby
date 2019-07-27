@@ -50,7 +50,7 @@ class LanguagePack::Ruby < LanguagePack::Base
     setup_language_pack_environment
     setup_profiled
     allow_git do
-      #install_language_pack_gems
+      install_language_pack_gems
       build_bundler
       create_database_yml
       install_binaries
