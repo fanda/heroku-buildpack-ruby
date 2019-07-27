@@ -168,7 +168,6 @@ ERROR
 
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
-      puts "Get Ruby in: #{VENDOR_URL}"
       run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}  -s -o - | tar xvfj -")
     end
     # error invalid_ruby_version_message unless $?.success?
@@ -211,7 +210,8 @@ ERROR
     FileUtils.mkdir_p(slug_vendor_base)
     Dir.chdir(slug_vendor_base) do |dir|
       gems.each do |gem|
-        run("curl #{VENDOR_URL}/#{gem}.tgz -s -o - | tar xzf -")
+        puts "Get gem in: #{VENDOR_URL}/#{gem}"
+        run("curl #{VENDOR_URL}/#{gem}.tar.gz -s -o - | tar xzf -")
       end
       Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
