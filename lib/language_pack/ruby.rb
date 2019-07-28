@@ -168,8 +168,9 @@ ERROR
 
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
-      run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}  -s -o - | tar xvfj -")
+      puts run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}  -s -o - | tar xvfj -")
     end
+    p $?
     # error invalid_ruby_version_message unless $?.success?
     #
 
@@ -178,7 +179,7 @@ ERROR
     Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
       run("ln -s ../#{bin} #{bin_dir}")
     end
-    puts "sleeop"
+    puts "sleeop in #{slug_vendor_ruby}"
     sleep 15
 
     topic "Using Ruby version: #{ruby_version}"
