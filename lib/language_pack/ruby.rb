@@ -101,7 +101,7 @@ private
       old_system_path = "#{ruby_path}:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
       #@ruby_version = run_stdout("env PATH=#{old_system_path}:#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
       puts "Bundler path is #{bundler_path}"
-      @ruby_version = run_stdout("#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
+      @ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp
     end
     puts "Ruby version is #{@ruby_version}"
 
