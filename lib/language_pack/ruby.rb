@@ -91,6 +91,7 @@ private
   # fetch the ruby version from bundler
   # @return [String, nil] returns the ruby version if detected or nil if none is detected
   def ruby_version
+    puts "Getting Ruby Version"
     return @ruby_version if @ruby_version_run
 
     @ruby_version_run = true
@@ -120,7 +121,7 @@ private
   def bootstrap_bundler(&block)
     Dir.mktmpdir("bundler-") do |tmpdir|
       Dir.chdir(tmpdir) do
-        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tgz -s -o - | tar xzf -")
+        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tgz| tar -xz")
       end
 
       yield tmpdir
@@ -157,7 +158,7 @@ private
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
-    return false unless ruby_version
+    return false unless ruby_version.nil? or ruby_version.empty?
 
     invalid_ruby_version_message = <<ERROR
 Invalid RUBY_VERSION specified: #{ruby_version}
