@@ -121,7 +121,7 @@ private
   def bootstrap_bundler(&block)
     Dir.mktmpdir("bundler-") do |tmpdir|
       Dir.chdir(tmpdir) do
-        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tgz| tar -xz")
+        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tar.gz| tar -xz")
       end
 
       yield tmpdir
