@@ -102,6 +102,8 @@ private
       #@ruby_version = run_stdout("env PATH=#{old_system_path}:#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
       puts "Bundler path is #{bundler_path}"
       @ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp
+    puts "Ruby version is #{@ruby_version}"
+      sleep
     end
     puts "Ruby version is #{@ruby_version}"
 
