@@ -171,12 +171,15 @@ ERROR
       run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION}  -s -o - | tar xvfj -")
     end
     # error invalid_ruby_version_message unless $?.success?
+    #
 
     bin_dir = "bin"
     FileUtils.mkdir_p bin_dir
     Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
       run("ln -s ../#{bin} #{bin_dir}")
     end
+    puts "sleeop"
+    sleep 15
 
     topic "Using Ruby version: #{ruby_version}"
 
@@ -210,8 +213,7 @@ ERROR
     FileUtils.mkdir_p(slug_vendor_base)
     Dir.chdir(slug_vendor_base) do |dir|
       gems.each do |gem|
-        puts "Get gem in: #{VENDOR_URL}/#{gem}"
-        run("curl #{VENDOR_URL}/#{gem}.tar.gz -s -o - | tar xzf -")
+        puts run("curl #{VENDOR_URL}/#{gem}.tar.gz -s -o - | tar xzf -")
       end
       Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
