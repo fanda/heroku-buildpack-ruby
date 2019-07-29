@@ -405,11 +405,12 @@ params = CGI.parse(uri.query || "")
   # add bundler to the load path
   # @note it sets a flag, so the path can only be loaded once
   def add_bundler_to_load_path
-    @bundler_loadpath ||= begin
+    return if @bundler_loadpath
+
                             sleep
-      $: << File.expand_path(Dir["#{slug_vendor_base}/gems/bundler*/lib"].first)
-      true
-    end
+
+    $: << File.expand_path(Dir["#{slug_vendor_base}/gems/bundler*/lib"].first)
+    @bundler_loadpath =  true
   end
 
   # detects if a gem is in the bundle.
