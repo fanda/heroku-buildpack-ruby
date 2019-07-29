@@ -53,7 +53,6 @@ class LanguagePack::Ruby < LanguagePack::Base
       install_language_pack_gems
       build_bundler
       create_database_yml
-      install_binaries
       run_assets_precompile_rake_task
     end
   end
@@ -93,10 +92,12 @@ private
     @ruby_version_run = true
 
     bootstrap_bundler do |bundler_path|
-      ruby_path = File.dirname(`which ruby`)
-      old_system_path = "#{ruby_path}:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
+      @ruby_version = lockfile_parser.ruby_version.chomp.sub(/p\d+$/, '')
+      puts "RUBY IS #{@ruby_version}"
+      #ruby_path = File.dirname(`which ruby`)
+      #old_system_path = "#{ruby_path}:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
       #@ruby_version = run_stdout("env PATH=#{old_system_path}:#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
-      @ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp.sub(/p\d+$/, '')
+      #@ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp.sub(/p\d+$/, '')
     end
 
     if @ruby_version == "No ruby version specified" && ENV['RUBY_VERSION']
@@ -125,15 +126,6 @@ private
     end
   end
 
-  # list the available valid ruby versions
-  # @note the value is memoized
-  # @return [Array] list of Strings of the ruby versions available
-  def ruby_versions
-    @ruby_versions ||= begin
-      Dir["#{VENDOR_URL}/*"].map {|f| f.sub(".#{RUBY_PKG_EXTENSION}", '') }
-    end
-  end
-
   # sets up the environment variables for the build process
   def setup_language_pack_environment
     setup_ruby_install_env
@@ -155,21 +147,11 @@ private
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
-    # return false unless ruby_version.nil? or ruby_version.empty?
-
-    invalid_ruby_version_message = <<ERROR
-Invalid RUBY_VERSION specified: #{ruby_version}
-Valid versions: #{ruby_versions.join(", ")}
-ERROR
-
-    ruby_vm = "ruby"
-
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
       puts run("curl #{VENDOR_URL}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
-    error invalid_ruby_version_message unless $?.success?
-
+    error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
 
     bin_dir = "bin"
     FileUtils.mkdir_p bin_dir
@@ -208,40 +190,11 @@ ERROR
   def install_language_pack_gems
     FileUtils.mkdir_p(slug_vendor_base)
     Dir.chdir(slug_vendor_base) do |dir|
-      gems.each do |gem|
+      [BUNDLER_GEM_PATH].each do |gem|
         puts run("curl #{VENDOR_URL}/#{gem}.tar.gz | tar -xz --strip-components=1")
       end
       Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
-  end
-
-  # default set of binaries to install
-  # @return [Array] resulting list
-  def binaries
-    add_node_js_binary
-  end
-
-  # vendors binaries into the slug
-  def install_binaries
-    binaries.each {|binary| install_binary(binary) }
-    Dir["bin/*"].each {|path| run("chmod +x #{path}") }
-  end
-
-  # vendors individual binary into the slug
-  # @param [String] name of the binary package from S3.
-  #   Example: https://s3.amazonaws.com/language-pack-ruby/node-0.4.7.tgz, where name is "node-0.4.7"
-  def install_binary(name)
-    bin_dir = "bin"
-    FileUtils.mkdir_p bin_dir
-    Dir.chdir(bin_dir) do |dir|
-      run("curl #{VENDOR_URL}/#{name}.tgz -s -o - | tar xzf -")
-    end
-  end
-
-  # removes a binary from the slug
-  # @param [String] relative path of the binary on the slug
-  def uninstall_binary(path)
-    FileUtils.rm File.join('bin', File.basename(path)), :force => true
   end
 
   # install libyaml into the LP to be referenced for psych compilation
