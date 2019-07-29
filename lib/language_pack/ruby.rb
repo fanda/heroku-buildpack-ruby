@@ -69,8 +69,8 @@ private
   # the relative path to the bundler directory of gems
   # @return [String] resulting path
   def slug_vendor_base
-    @slug_vendor_base ||= File.join(build_path, "bundle", "ruby", ruby_version.sub(/\d+$/, '0'))
     # @slug_vendor_base ||= run(%q(ruby -e "require 'rbconfig';puts \"vendor/bundle/#{RUBY_ENGINE}/#{RbConfig::CONFIG['ruby_version']}\"")).chomp
+    @slug_vendor_base ||= File.join(build_path, "vendor", "bundle", "ruby", ruby_version.sub(/\d+$/, '0'))
   end
 
   # the relative path to the vendored ruby directory
@@ -337,79 +337,13 @@ ERROR
     end
   end
 
-  # writes ERB based database.yml for Rails. The database.yml uses the DATABASE_URL from the environment during runtime.
-  def create_database_yml
-    log("create_database_yml") do
-      return unless File.directory?("config")
-      topic("Writing config/database.yml to read from DATABASE_URL")
-      File.open("config/database.yml", "w") do |file|
-        file.puts <<-DATABASE_YML
-<%
-
-require 'cgi'
-require 'uri'
-
-begin
-  uri = URI.parse(ENV["DATABASE_URL"])
-rescue URI::InvalidURIError
-  raise "Invalid DATABASE_URL"
-end
-
-raise "No RACK_ENV or RAILS_ENV found" unless ENV["RAILS_ENV"] || ENV["RACK_ENV"]
-
-def attribute(name, value, force_string = false)
-  if value
-    value_string =
-      if force_string
-        '"' + value + '"'
-      else
-        value
-      end
-    "\#{name}: \#{value_string}"
-  else
-    ""
-  end
-end
-
-adapter = uri.scheme
-adapter = "postgresql" if adapter == "postgres"
-
-database = (uri.path || "").split("/")[1]
-
-username = uri.user
-password = uri.password
-
-host = uri.host
-port = uri.port
-
-params = CGI.parse(uri.query || "")
-
-%>
-
-<%= ENV["RAILS_ENV"] || ENV["RACK_ENV"] %>:
-  <%= attribute "adapter",  adapter %>
-  <%= attribute "database", database %>
-  <%= attribute "username", username %>
-  <%= attribute "password", password, true %>
-  <%= attribute "host",     host %>
-  <%= attribute "port",     port %>
-
-<% params.each do |key, value| %>
-  <%= key %>: <%= value.first %>
-<% end %>
-        DATABASE_YML
-      end
-    end
-  end
-
   # add bundler to the load path
   # @note it sets a flag, so the path can only be loaded once
   def add_bundler_to_load_path
     return if @bundler_loadpath
     puts "some paths"
-    p Dir["#{slug_vendor_base}/bundler*/lib"]
-    sleep
-    $: << File.expand_path(Dir["#{slug_vendor_base}/bundler*/lib"].first)
+    p Dir["#{slug_vendor_base}/lib"]
+    $: << File.expand_path(Dir["#{slug_vendor_base}/lib"].first)
     @bundler_loadpath = true
   end
 
@@ -476,4 +410,70 @@ params = CGI.parse(uri.query || "")
       end
     end
   end
+
+  # writes ERB based database.yml for Rails. The database.yml uses the DATABASE_URL from the environment during runtime.
+  def create_database_yml
+    log("create_database_yml") do
+      return unless File.directory?("config")
+      topic("Writing config/database.yml to read from DATABASE_URL")
+      File.open("config/database.yml", "w") do |file|
+        file.puts <<-DATABASE_YML
+<%
+
+require 'cgi'
+require 'uri'
+
+begin
+  uri = URI.parse(ENV["DATABASE_URL"])
+rescue URI::InvalidURIError
+  raise "Invalid DATABASE_URL"
+end
+
+raise "No RACK_ENV or RAILS_ENV found" unless ENV["RAILS_ENV"] || ENV["RACK_ENV"]
+
+def attribute(name, value, force_string = false)
+  if value
+    value_string =
+      if force_string
+        '"' + value + '"'
+      else
+        value
+      end
+    "\#{name}: \#{value_string}"
+  else
+    ""
+  end
+end
+
+adapter = uri.scheme
+adapter = "postgresql" if adapter == "postgres"
+
+database = (uri.path || "").split("/")[1]
+
+username = uri.user
+password = uri.password
+
+host = uri.host
+port = uri.port
+
+params = CGI.parse(uri.query || "")
+
+%>
+
+<%= ENV["RAILS_ENV"] || ENV["RACK_ENV"] %>:
+  <%= attribute "adapter",  adapter %>
+  <%= attribute "database", database %>
+  <%= attribute "username", username %>
+  <%= attribute "password", password, true %>
+  <%= attribute "host",     host %>
+  <%= attribute "port",     port %>
+
+<% params.each do |key, value| %>
+  <%= key %>: <%= value.first %>
+<% end %>
+        DATABASE_YML
+      end
+    end
+  end
+
 end
