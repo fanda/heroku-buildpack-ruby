@@ -276,18 +276,14 @@ ERROR
       bundle_without = ENV["BUNDLE_WITHOUT"] || "development:test"
       bundle_command = "bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
 
+      sleep
       unless File.exist?("Gemfile.lock")
         error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
       end
 
-      if has_windows_gemfile_lock?
-        log("bundle", "has_windows_gemfile_lock")
-        File.unlink("Gemfile.lock")
-      else
         # using --deployment is preferred if we can
         bundle_command += " --deployment"
         cache_load ".bundle"
-      end
 
       version = run("env bundle version").strip
       topic("Installing dependencies using #{version}")
@@ -341,18 +337,8 @@ ERROR
   # @note it sets a flag, so the path can only be loaded once
   def add_bundler_to_load_path
     return if @bundler_loadpath
-    puts "some paths"
-    p Dir["#{slug_vendor_base}/lib"]
     $: << File.expand_path(Dir["#{slug_vendor_base}/lib"].first)
     @bundler_loadpath = true
-  end
-
-  # detects whether the Gemfile.lock contains the Windows platform
-  # @return [Boolean] true if the Gemfile.lock was created on Windows
-  def has_windows_gemfile_lock?
-    lockfile_parser.platforms.detect do |platform|
-      /mingw|mswin/.match(platform.os) if platform.is_a?(Gem::Platform)
-    end
   end
 
   # detects if a gem is in the bundle.
