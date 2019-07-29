@@ -156,11 +156,8 @@ private
     bin_dir = "bin"
     FileUtils.mkdir_p bin_dir
     Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
-      puts "bin is #{bin}"
       run("ln -s ../#{bin} #{bin_dir}")
     end
-    puts "sleeop in #{slug_vendor_ruby}"
-    sleep 15
 
     topic "Using Ruby version: #{ruby_version}"
 
@@ -226,14 +223,13 @@ private
       bundle_without = ENV["BUNDLE_WITHOUT"] || "development:test"
       bundle_command = "bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
 
-      sleep
       unless File.exist?("Gemfile.lock")
         error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
       end
 
-        # using --deployment is preferred if we can
-        bundle_command += " --deployment"
-        cache_load ".bundle"
+      # using --deployment is preferred if we can
+      bundle_command += " --deployment"
+      cache_load ".bundle"
 
       version = run("env bundle version").strip
       topic("Installing dependencies using #{version}")
