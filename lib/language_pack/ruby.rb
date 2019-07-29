@@ -408,6 +408,7 @@ params = CGI.parse(uri.query || "")
     return if @bundler_loadpath
     puts "some paths"
     p Dir["#{slug_vendor_base}/bundler*/lib"]
+    sleep
     $: << File.expand_path(Dir["#{slug_vendor_base}/bundler*/lib"].first)
     @bundler_loadpath = true
   end
