@@ -285,14 +285,9 @@ ERROR
         error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
       end
 
-      if has_windows_gemfile_lock?
-        log("bundle", "has_windows_gemfile_lock")
-        File.unlink("Gemfile.lock")
-      else
         # using --deployment is preferred if we can
         bundle_command += " --deployment"
         cache_load ".bundle"
-      end
 
       version = run("env bundle version").strip
       topic("Installing dependencies using #{version}")
@@ -410,16 +405,10 @@ params = CGI.parse(uri.query || "")
   # add bundler to the load path
   # @note it sets a flag, so the path can only be loaded once
   def add_bundler_to_load_path
-    return if @bundler_loadpath
-    $: << File.expand_path(Dir["#{slug_vendor_base}/gems/bundler*/lib"].first)
-    @bundler_loadpath = true
-  end
-
-  # detects whether the Gemfile.lock contains the Windows platform
-  # @return [Boolean] true if the Gemfile.lock was created on Windows
-  def has_windows_gemfile_lock?
-    lockfile_parser.platforms.detect do |platform|
-      /mingw|mswin/.match(platform.os) if platform.is_a?(Gem::Platform)
+    @bundler_loadpath ||= begin
+                            sleep
+      $: << File.expand_path(Dir["#{slug_vendor_base}/gems/bundler*/lib"].first)
+      true
     end
   end
 
