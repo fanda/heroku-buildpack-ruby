@@ -92,12 +92,12 @@ private
     @ruby_version_run = true
 
     bootstrap_bundler do |bundler_path|
-      @ruby_version = lockfile_parser.ruby_version.chomp.sub(/p\d+$/, '')
-      puts "RUBY IS #{@ruby_version}"
-      #ruby_path = File.dirname(`which ruby`)
-      #old_system_path = "#{ruby_path}:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
+      #@ruby_version = lockfile_parser.ruby_version.chomp.sub(/p\d+$/, '')
+      #puts "RUBY IS #{@ruby_version}"
+      ruby_path = File.dirname(`which ruby`)
+      old_system_path = "#{ruby_path}:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
       #@ruby_version = run_stdout("env PATH=#{old_system_path}:#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
-      #@ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp.sub(/p\d+$/, '')
+      @ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp.sub(/p\d+$/, '')
     end
 
     if @ruby_version == "No ruby version specified" && ENV['RUBY_VERSION']
