@@ -126,7 +126,7 @@ private
   def bootstrap_bundler(&block)
     Dir.mktmpdir("bundler-") do |tmpdir|
       Dir.chdir(tmpdir) do
-        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tar.gz| tar -xzf")
+        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tar.gz| tar -xz --strip-components=1")
       end
 
       yield tmpdir
@@ -174,7 +174,7 @@ ERROR
 
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
-      puts run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xjf")
+      puts run("curl #{VENDOR_URL}/#{ruby_vm}-#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
     # error invalid_ruby_version_message unless $?.success?
     #
@@ -219,7 +219,7 @@ ERROR
     FileUtils.mkdir_p(slug_vendor_base)
     Dir.chdir(slug_vendor_base) do |dir|
       gems.each do |gem|
-        puts run("curl #{VENDOR_URL}/#{gem}.tar.gz -s -o - | tar xzf -")
+        puts run("curl #{VENDOR_URL}/#{gem}.tar.gz | tar -xz --strip-components=1")
       end
       Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
