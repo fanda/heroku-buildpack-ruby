@@ -69,11 +69,8 @@ private
   # the relative path to the bundler directory of gems
   # @return [String] resulting path
   def slug_vendor_base
-    if @slug_vendor_base
-      @slug_vendor_base
-    else
-      @slug_vendor_base = run(%q(ruby -e "require 'rbconfig';puts \"vendor/bundle/#{RUBY_ENGINE}/#{RbConfig::CONFIG['ruby_version']}\"")).chomp
-    end
+    @slug_vendor_base ||= File.join(build_path, "bundle", "ruby", ruby_version.sub(/\d+$/, '0'))
+    # @slug_vendor_base ||= run(%q(ruby -e "require 'rbconfig';puts \"vendor/bundle/#{RUBY_ENGINE}/#{RbConfig::CONFIG['ruby_version']}\"")).chomp
   end
 
   # the relative path to the vendored ruby directory
@@ -409,8 +406,9 @@ params = CGI.parse(uri.query || "")
   # @note it sets a flag, so the path can only be loaded once
   def add_bundler_to_load_path
     return if @bundler_loadpath
-    sleep
-    $: << File.expand_path(Dir["#{slug_vendor_base}/gems/bundler*/lib"].first)
+    puts "some paths"
+    p Dir["#{slug_vendor_base}/bundler*/lib"]
+    $: << File.expand_path(Dir["#{slug_vendor_base}/bundler*/lib"].first)
     @bundler_loadpath = true
   end
 
