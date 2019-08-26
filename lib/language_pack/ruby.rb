@@ -154,7 +154,7 @@ private
     end
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
-      puts run("curl #{File.expand(ruby_package_path)}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
+      puts run("curl #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
     error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
 
