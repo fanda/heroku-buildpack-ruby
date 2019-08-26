@@ -147,12 +147,13 @@ private
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
-    FileUtils.mkdir_p(File.join(slug_vendor_ruby, VENDOR_URL))
+    ruby_package_path = File.join('tmp', 'ruby')
+    Dir.chdir(ruby_package_path) do
+      run("rvm prepare #{ruby_version}")
+    end
+    FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
-      Dir.chdir(VENDOR_URL) do
-        run("rvm prepare #{ruby_version}")
-      end
-      puts run("curl #{VENDOR_URL}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
+      puts run("curl #{File.expand(ruby_package_path)}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
     error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
 
