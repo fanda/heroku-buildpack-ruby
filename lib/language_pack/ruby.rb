@@ -149,6 +149,9 @@ private
   def install_ruby
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
+      Dir.chdir(VENDOR_URL) do
+        run("rvm prepare #{ruby_version}")
+      end
       puts run("curl #{VENDOR_URL}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
     error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
