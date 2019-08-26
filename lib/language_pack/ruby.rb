@@ -147,7 +147,7 @@ private
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
-    ruby_package_path = File.join('tmp', 'ruby')
+    ruby_package_path = '/tmp/ruby'
     Dir.chdir(ruby_package_path) do
       run("rvm prepare #{ruby_version}")
     end
