@@ -150,7 +150,7 @@ private
     ruby_package_path = '/tmp/ruby'
     FileUtils.mkdir_p(ruby_package_path)
     Dir.chdir(ruby_package_path) do
-      run("rvm prepare #{ruby_version}")
+      run("/usr/local/rvm/bin/rvm prepare #{ruby_version}")
     end
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
