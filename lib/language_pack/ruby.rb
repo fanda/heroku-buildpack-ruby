@@ -184,7 +184,7 @@ private
     ENV["PATH"] = "#{ruby_install_binstub_path}:#{ENV["PATH"]}"
 
     puts "setup_ruby_install_env: #{ruby_install_libstub_path}"
-    ENV["LD_LIBRARY_PATH"] = "#{ruby_install_libstub_path}:#{ENV["LD_LIBRARY_PATH"]}"
+    ENV["LD_LIBRARY_PATH"] = "#{File.expand_path(ruby_install_libstub_path)}:#{ENV["LD_LIBRARY_PATH"]}"
   end
 
   # list of default gems to vendor into the slug
