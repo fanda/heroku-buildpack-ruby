@@ -159,7 +159,7 @@ private
       run("ln -s ../#{bin} #{bin_dir}")
     end
 
-    topic "Using Ruby version: #{ruby_version}"
+    topic "Using Ruby version: #{ruby_version} (test: #{`ruby -v`})"
 
     true
   end
@@ -171,10 +171,20 @@ private
     @ruby_install_binstub_path ||= "#{slug_vendor_ruby}/bin"
   end
 
+  # find the ruby install path for its binstubs during build
+  # @return [String] resulting path or empty string if ruby is not vendored
+  def ruby_install_libstub_path
+    puts "ruby_install_libstub_path: #{slug_vendor_ruby}/lib"
+    @ruby_install_libstub_path ||= "#{slug_vendor_ruby}/lib"
+  end
+
   # setup the environment so we can use the vendored ruby
   def setup_ruby_install_env
     puts "setup_ruby_install_env: #{ruby_install_binstub_path}"
     ENV["PATH"] = "#{ruby_install_binstub_path}:#{ENV["PATH"]}"
+
+    puts "setup_ruby_install_env: #{ruby_install_libstub_path}"
+    ENV["LD_LIBRARY_PATH"] = "#{ruby_install_libstub_path}:#{ENV["LD_LIBRARY_PATH"]}"
   end
 
   # list of default gems to vendor into the slug
@@ -232,7 +242,7 @@ private
       cache_load ".bundle"
 
       version = run("env bundle version").strip
-      topic("Installing dependencies using #{version}")
+      topic("Installing dependencies using bundler #{version}")
 
       cache_load "vendor/bundle"
 
