@@ -147,7 +147,7 @@ private
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
-    FileUtils.mkdir_p(slug_vendor_ruby)
+    FileUtils.mkdir_p(File.join(slug_vendor_ruby, VENDOR_URL))
     Dir.chdir(slug_vendor_ruby) do
       Dir.chdir(VENDOR_URL) do
         run("rvm prepare #{ruby_version}")
