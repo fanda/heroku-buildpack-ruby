@@ -149,25 +149,24 @@ private
   def install_ruby
     ruby_package_path = '/tmp/ruby'
 
-    topic "Want to use Ruby #{ruby_version} (test: #{`ruby -v`}, pkg_path: #{ruby_package_path}, slug_path: #{slug_vendor_ruby})"
+    topic "Want to use Ruby #{ruby_version} (test: #{`ruby -v`.chomp}, pkg_path: #{ruby_package_path}, slug_path: #{slug_vendor_ruby})"
 
     FileUtils.mkdir_p(ruby_package_path)
     Dir.chdir(ruby_package_path) do
-      run("/usr/local/rvm/bin/rvm prepare #{ruby_version}")
+      puts run("/usr/local/rvm/bin/rvm prepare #{ruby_version}")
     end
 
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
-      puts "curl #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION}"
-      puts run("curl #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
+      puts run("cat #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
     error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
 
-    bin_dir = "bin"
-    FileUtils.mkdir_p bin_dir
-    Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
-      run("ln -s ../#{bin} #{bin_dir}")
-    end
+    #bin_dir = "bin"
+    #FileUtils.mkdir_p bin_dir
+    #Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
+    #  run("ln -s ../#{bin} #{bin_dir}")
+    #end
 
     topic "Using Ruby version: #{ruby_version} (test: #{`ruby -v`})"
 
