@@ -119,7 +119,7 @@ private
   def bootstrap_bundler(&block)
     Dir.mktmpdir("bundler-") do |tmpdir|
       Dir.chdir(tmpdir) do
-        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tar.gz| tar -xz --strip-components=1")
+        run("curl #{VENDOR_URL}/#{BUNDLER_GEM_PATH}.tar.gz | tar -xz --strip-components=1")
       end
 
       yield tmpdir
@@ -152,8 +152,10 @@ private
     Dir.chdir(ruby_package_path) do
       run("/usr/local/rvm/bin/rvm prepare #{ruby_version}")
     end
+
     FileUtils.mkdir_p(slug_vendor_ruby)
     Dir.chdir(slug_vendor_ruby) do
+      puts "curl #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION}"
       puts run("curl #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
     end
     error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
