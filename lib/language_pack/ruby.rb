@@ -162,11 +162,11 @@ private
     end
     error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
 
-    #bin_dir = "bin"
-    #FileUtils.mkdir_p bin_dir
-    #Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
-    #  run("ln -s ../#{bin} #{bin_dir}")
-    #end
+    bin_dir = "bin"
+    FileUtils.mkdir_p bin_dir
+    Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
+      run("ln -s ../#{bin} #{bin_dir}")
+    end
 
     topic "Using Ruby version: #{ruby_version} (test: #{`ruby -v`})"
 
