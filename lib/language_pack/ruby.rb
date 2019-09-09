@@ -240,7 +240,7 @@ private
   def build_bundler
     log("bundle") do
       bundle_without = ENV["BUNDLE_WITHOUT"] || "development:test"
-      bundle_command = "bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
+      bundle_command = "#{slug_vendor_base}/bin/bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
 
       unless File.exist?("Gemfile.lock")
         error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
@@ -250,7 +250,7 @@ private
       bundle_command += " --deployment"
       cache_load ".bundle"
 
-      version = run("env bundle version").strip
+      version = run("env #{slug_vendor_base}/bin/bundle version").strip
       topic("Installing dependencies using bundler #{version}")
 
       cache_load "vendor/bundle"
