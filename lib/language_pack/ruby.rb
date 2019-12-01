@@ -176,23 +176,23 @@ private
   # find the ruby install path for its binstubs during build
   # @return [String] resulting path or empty string if ruby is not vendored
   def ruby_install_binstub_path
-    puts "ruby_install_binstub_path: #{slug_vendor_ruby}/bin"
+    #puts "ruby_install_binstub_path: #{slug_vendor_ruby}/bin"
     @ruby_install_binstub_path ||= "#{slug_vendor_ruby}/bin"
   end
 
   # find the ruby install path for its binstubs during build
   # @return [String] resulting path or empty string if ruby is not vendored
   def ruby_install_libstub_path
-    puts "ruby_install_libstub_path: #{slug_vendor_ruby}/lib"
+    #puts "ruby_install_libstub_path: #{slug_vendor_ruby}/lib"
     @ruby_install_libstub_path ||= "#{slug_vendor_ruby}/lib"
   end
 
   # setup the environment so we can use the vendored ruby
   def setup_ruby_install_env
-    puts "setup_ruby_install_env: #{ruby_install_binstub_path}"
+    #puts "setup_ruby_install_env: #{ruby_install_binstub_path}"
     ENV["PATH"] = "#{ruby_install_binstub_path}:#{ENV["PATH"]}"
 
-    puts "setup_ruby_install_env: #{ruby_install_libstub_path}"
+    #puts "setup_ruby_install_env: #{ruby_install_libstub_path}"
     ENV["LD_LIBRARY_PATH"] = "#{File.expand_path(ruby_install_libstub_path)}:#{ENV["LD_LIBRARY_PATH"]}"
   end
 
