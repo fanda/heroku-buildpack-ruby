@@ -24,14 +24,13 @@ class LanguagePack::Ruby < LanguagePack::Base
   end
 
   def default_addons
-    add_shared_database_addon
   end
 
   def default_config_vars
     vars = {
       "LANG"     => "en_US.UTF-8",
       "PATH"     => default_path,
-      "GEM_PATH" => slug_vendor_base,
+      "GEM_PATH" => slug_vendor_bundler,
       "GEM_HOME" => "/tmp/gems"
     }
   end
@@ -50,9 +49,8 @@ class LanguagePack::Ruby < LanguagePack::Base
     setup_language_pack_environment
     setup_profiled
     allow_git do
-      install_language_pack_gems
+      # install_language_pack_gems
       build_bundler
-      create_database_yml
       run_assets_precompile_rake_task
     end
   end
@@ -62,14 +60,14 @@ private
   # the base PATH environment variable to be used
   # @return [String] the resulting PATH
   def default_path
-    "bin:#{slug_vendor_base}/bin:/usr/local/bin:/usr/bin:/bin"
+    "bin:#{slug_vendor_bundler}/bin:/usr/local/bin:/usr/bin:/bin"
   end
 
   # the relative path to the bundler directory of gems
   # @return [String] resulting path
-  def slug_vendor_base
-    # @slug_vendor_base ||= run(%q(ruby -e "require 'rbconfig';puts \"vendor/bundle/#{RUBY_ENGINE}/#{RbConfig::CONFIG['ruby_version']}\"")).chomp
-    @slug_vendor_base ||= File.join(build_path, "vendor", "bundle", "ruby", ruby_version.sub(/\d+$/, '0'))
+  def slug_vendor_bundler
+    # @slug_vendor_bundler ||= run(%q(ruby -e "require 'rbconfig';puts \"vendor/bundle/#{RUBY_ENGINE}/#{RbConfig::CONFIG['ruby_version']}\"")).chomp
+    @slug_vendor_bundler ||= File.join("vendor", "bundle", "ruby", ruby_version_number.sub(/\d+$/, '0'))
   end
 
   # the relative path to the vendored ruby directory
@@ -81,7 +79,7 @@ private
   # the absolute path of the build ruby to use during the buildpack
   # @return [String] resulting path
   def build_ruby_path
-    "/tmp/#{ruby_version}"
+    "/opt/ruby/#{ruby_version_number}"
   end
 
   # fetch the ruby version from bundler
@@ -115,6 +113,10 @@ private
     @ruby_version
   end
 
+  def ruby_version_number
+    ruby_version.split('-').last
+  end
+
   # bootstraps bundler so we can pull the ruby version
   def bootstrap_bundler(&block)
     Dir.mktmpdir("bundler-") do |tmpdir|
@@ -133,42 +135,30 @@ private
     config_vars = default_config_vars.each do |key, value|
       ENV[key] ||= value
     end
-    ENV["GEM_HOME"] = slug_vendor_base
+    ENV["GEM_HOME"] = slug_vendor_bundler
     ENV["PATH"]     = "#{ruby_install_binstub_path}:#{config_vars["PATH"]}"
   end
 
   # sets up the profile.d script for this buildpack
   def setup_profiled
-    set_env_default  "GEM_PATH", "$HOME/#{slug_vendor_base}"
+    set_env_default  "GEM_PATH", "$HOME/#{slug_vendor_bundler}"
     set_env_default  "LANG",     "en_US.UTF-8"
-    set_env_override "PATH",     "$HOME/bin:$HOME/#{slug_vendor_base}/bin:$PATH"
+    set_env_override "PATH",     "$HOME/bin:$HOME/#{slug_vendor_bundler}/bin:$PATH"
   end
 
   # install the vendored ruby
   # @return [Boolean] true if it installs the vendored ruby and false otherwise
   def install_ruby
-    ruby_package_path = '/tmp/ruby'
-
-    topic "Want to use Ruby #{ruby_version} (test: #{`ruby -v`.chomp}, pkg_path: #{ruby_package_path}, slug_path: #{slug_vendor_ruby})"
-
-    FileUtils.mkdir_p(ruby_package_path)
-    Dir.chdir(ruby_package_path) do
-      puts run("/usr/local/rvm/bin/rvm prepare #{ruby_version}")
-    end
-
-    FileUtils.mkdir_p(slug_vendor_ruby)
-    Dir.chdir(slug_vendor_ruby) do
-      puts run("cat #{ruby_package_path}/#{ruby_version}.#{RUBY_PKG_EXTENSION} | tar -xj --strip-components=1")
-    end
-    error "Invalid RUBY_VERSION specified: #{ruby_version}" unless $?.success?
+    FileUtils.mkdir_p("vendor")
+    run("cp -R #{build_ruby_path} vendor/#{ruby_version}")
 
     bin_dir = "bin"
     FileUtils.mkdir_p bin_dir
-    Dir["#{slug_vendor_ruby}/bin/*"].each do |bin|
-      run("ln -s ../#{bin} #{bin_dir}")
+    Dir["#{slug_vendor_ruby}/bin/*"].each do |bin_in_vendor|
+      run("ln -s ../#{bin_in_vendor} #{bin_dir}/")
     end
 
-    topic "Using Ruby version: #{ruby_version} (test: #{`ruby -v`})"
+    topic "Using Ruby version: #{ruby_version} (test: #{`#{bin_dir}/ruby -v`})"
 
     true
   end
@@ -191,25 +181,24 @@ private
   def setup_ruby_install_env
     #puts "setup_ruby_install_env: #{ruby_install_binstub_path}"
     ENV["PATH"] = "#{ruby_install_binstub_path}:#{ENV["PATH"]}"
-
     #puts "setup_ruby_install_env: #{ruby_install_libstub_path}"
     ENV["LD_LIBRARY_PATH"] = "#{File.expand_path(ruby_install_libstub_path)}:#{ENV["LD_LIBRARY_PATH"]}"
   end
 
   # list of default gems to vendor into the slug
   # @return [Array] resulting list of gems
-  def gems
+  def vendored_gems
     [BUNDLER_GEM_PATH]
   end
 
   # installs vendored gems into the slug
   def install_language_pack_gems
-    FileUtils.mkdir_p(slug_vendor_base)
-    Dir.chdir(slug_vendor_base) do |dir|
-      [BUNDLER_GEM_PATH].each do |gem|
-        puts run("curl #{VENDOR_URL}/#{gem}.tar.gz | tar -xz --strip-components=1")
+    FileUtils.mkdir_p(slug_vendor_bundler)
+    Dir.chdir(slug_vendor_bundler) do |dir|
+      vendored_gems.each do |g|
+        puts run("curl #{VENDOR_URL}/#{g}.tar.gz | tar -xz --strip-components=1")
       end
-      Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
+      # Dir["bin/*"].each {|path| run("chmod 755 #{path}") }
     end
   end
 
@@ -239,8 +228,10 @@ private
   # runs bundler to install the dependencies
   def build_bundler
     log("bundle") do
+      puts run("#{slug_vendor_ruby}/bin/gem install bundler -v=#{BUNDLER_VERSION} --no-document")
+
       bundle_without = ENV["BUNDLE_WITHOUT"] || "development:test"
-      bundle_command = "#{slug_vendor_base}/bin/bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
+      bundle_command = "#{slug_vendor_ruby}/bin/bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
 
       unless File.exist?("Gemfile.lock")
         error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
@@ -250,7 +241,7 @@ private
       bundle_command += " --deployment"
       cache_load ".bundle"
 
-      version = run("env #{slug_vendor_base}/bin/bundle version").strip
+      version = run("env #{slug_vendor_ruby}/bin/bundle version").strip
       topic("Installing dependencies using bundler #{version}")
 
       cache_load "vendor/bundle"
@@ -280,19 +271,10 @@ private
         cache_store "vendor/bundle"
 
         # Keep gem cache out of the slug
-        FileUtils.rm_rf("#{slug_vendor_base}/cache")
+        FileUtils.rm_rf("#{slug_vendor_bundler}/cache")
       else
         log "bundle", :status => "failure"
         error_message = "Failed to install gems via Bundler."
-        if bundler_output.match(/Installing sqlite3 \([\w.]+\) with native extensions\s+Gem::Installer::ExtensionBuildError: ERROR: Failed to build gem native extension./)
-          error_message += <<ERROR
-
-
-Detected sqlite3 gem which is not supported on Heroku.
-http://devcenter.heroku.com/articles/how-do-i-use-sqlite3-for-development
-ERROR
-        end
-
         error error_message
       end
     end
@@ -302,7 +284,7 @@ ERROR
   # @note it sets a flag, so the path can only be loaded once
   def add_bundler_to_load_path
     return if @bundler_loadpath
-    $: << File.expand_path(Dir["#{slug_vendor_base}/lib"].first)
+    $: << File.expand_path(Dir["#{slug_vendor_bundler}/lib"].first)
     @bundler_loadpath = true
   end
 
@@ -337,12 +319,6 @@ ERROR
     ENV["GIT_DIR"] = git_dir
   end
 
-  # decides if we need to enable the shared database addon
-  # @return [Array] the database addon if the pg gem is detected or an empty Array if it isn't.
-  def add_shared_database_addon
-    gem_is_bundled?("pg") ? ['shared-database:5mb'] : []
-  end
-
   # decides if we need to install the node.js binary
   # @note execjs will blow up if no JS RUNTIME is detected and is loaded.
   # @return [Array] the node.js binary path if we need it or an empty Array
@@ -354,77 +330,11 @@ ERROR
     if rake_task_defined?("assets:precompile")
       require 'benchmark'
 
-      topic "Running: rake assets:precompile"
+      topic("Running: rake assets:precompile")
       time = Benchmark.realtime { pipe("env PATH=$PATH:bin bundle exec rake assets:precompile 2>&1") }
       if $?.success?
         puts "Asset precompilation completed (#{"%.2f" % time}s)"
       end
     end
   end
-
-  # writes ERB based database.yml for Rails. The database.yml uses the DATABASE_URL from the environment during runtime.
-  def create_database_yml
-    log("create_database_yml") do
-      return unless File.directory?("config")
-      topic("Writing config/database.yml to read from DATABASE_URL")
-      File.open("config/database.yml", "w") do |file|
-        file.puts <<-DATABASE_YML
-<%
-
-require 'cgi'
-require 'uri'
-
-begin
-  uri = URI.parse(ENV["DATABASE_URL"])
-rescue URI::InvalidURIError
-  raise "Invalid DATABASE_URL"
-end
-
-raise "No RACK_ENV or RAILS_ENV found" unless ENV["RAILS_ENV"] || ENV["RACK_ENV"]
-
-def attribute(name, value, force_string = false)
-  if value
-    value_string =
-      if force_string
-        '"' + value + '"'
-      else
-        value
-      end
-    "\#{name}: \#{value_string}"
-  else
-    ""
-  end
-end
-
-adapter = uri.scheme
-adapter = "postgresql" if adapter == "postgres"
-
-database = (uri.path || "").split("/")[1]
-
-username = uri.user
-password = uri.password
-
-host = uri.host
-port = uri.port
-
-params = CGI.parse(uri.query || "")
-
-%>
-
-<%= ENV["RAILS_ENV"] || ENV["RACK_ENV"] %>:
-  <%= attribute "adapter",  adapter %>
-  <%= attribute "database", database %>
-  <%= attribute "username", username %>
-  <%= attribute "password", password, true %>
-  <%= attribute "host",     host %>
-  <%= attribute "port",     port %>
-
-<% params.each do |key, value| %>
-  <%= key %>: <%= value.first %>
-<% end %>
-        DATABASE_YML
-      end
-    end
-  end
-
 end

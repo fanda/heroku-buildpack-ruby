@@ -221,6 +221,4 @@ private ##################################
     FileUtils.mkdir_p File.dirname(to)
     system("cp -a #{from}/. #{to}")
   end
-
 end
-
