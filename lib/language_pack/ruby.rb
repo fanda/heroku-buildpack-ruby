@@ -12,6 +12,8 @@ class LanguagePack::Ruby < LanguagePack::Base
   NODE_VERSION        = "0.4.7"
   NODE_JS_BINARY_PATH = "node-#{NODE_VERSION}"
   RUBY_PKG_EXTENSION  = "tar.bz2"
+  BIN_DIR             = "bin"
+  VENDOR_DIR          = "vendor"
 
   # detects if this is a valid Ruby app
   # @return [Boolean] true if it's a Ruby app
@@ -57,6 +59,76 @@ class LanguagePack::Ruby < LanguagePack::Base
 
 private
 
+  # install the vendored ruby
+  # @return [Boolean] true if it installs the vendored ruby and false otherwise
+  def install_ruby
+    FileUtils.mkdir_p(VENDOR_DIR)
+    run("cp -R #{build_ruby_path} #{VENDOR_DIR}/#{ruby_version}")
+
+    FileUtils.mkdir_p BIN_DIR
+    Dir["#{slug_vendor_ruby}/bin/*"].each do |bin_in_vendor|
+      run("ln -s ../#{bin_in_vendor} #{BIN_DIR}/")
+    end
+
+    topic "Using Ruby version: #{ruby_version} (test: #{`#{BIN_DIR}/ruby -v`})"
+    true
+  end
+
+  # runs bundler to install the dependencies
+  def build_bundler
+    log("bundle") do
+      puts run("#{slug_vendor_ruby}/bin/gem install bundler -v=#{BUNDLER_VERSION} --no-document")
+
+      bundle_without = ENV["BUNDLE_WITHOUT"] || "development:test"
+      bundle_command = "#{slug_vendor_ruby}/bin/bundle install --without #{bundle_without} --path #{VENDOR_DIR}/bundle --binstubs #{BIN_DIR}/"
+
+      unless File.exist?("Gemfile.lock")
+        error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
+      end
+
+      # using --deployment is preferred if we can
+      bundle_command += " --deployment"
+      cache_load ".bundle"
+
+      version = run("env #{slug_vendor_ruby}/bin/bundle version").strip
+      topic("Installing dependencies using bundler #{version}")
+
+      cache_load "#{VENDOR_DIR}/bundle"
+
+      bundler_output = ""
+      Dir.mktmpdir("libyaml-") do |tmpdir|
+        libyaml_dir = "#{tmpdir}/#{LIBYAML_PATH}"
+        install_libyaml(libyaml_dir)
+
+        # need to setup compile environment for the psych gem
+        yaml_include   = File.expand_path("#{libyaml_dir}/include")
+        yaml_lib       = File.expand_path("#{libyaml_dir}/lib")
+        pwd            = run("pwd").chomp
+        # we need to set BUNDLE_CONFIG and BUNDLE_GEMFILE for
+        # codon since it uses bundler.
+        env_vars       = "env BUNDLE_GEMFILE=#{pwd}/Gemfile BUNDLE_CONFIG=#{pwd}/.bundle/config CPATH=#{yaml_include}:$CPATH CPPATH=#{yaml_include}:$CPPATH LIBRARY_PATH=#{yaml_lib}:$LIBRARY_PATH"
+        puts "Running: #{bundle_command}"
+        bundler_output << pipe("#{env_vars} #{bundle_command} --no-clean 2>&1")
+
+      end
+
+      if $?.success?
+        log "bundle", :status => "success"
+        puts "Cleaning up the bundler cache."
+        run "bundle clean"
+        cache_store ".bundle"
+        cache_store "#{VENDOR_DIR}/bundle"
+
+        # Keep gem cache out of the slug
+        FileUtils.rm_rf("#{slug_vendor_bundler}/cache")
+      else
+        log "bundle", :status => "failure"
+        error_message = "Failed to install gems via Bundler."
+        error error_message
+      end
+    end
+  end
+
   # the base PATH environment variable to be used
   # @return [String] the resulting PATH
   def default_path
@@ -67,13 +139,13 @@ private
   # @return [String] resulting path
   def slug_vendor_bundler
     # @slug_vendor_bundler ||= run(%q(ruby -e "require 'rbconfig';puts \"vendor/bundle/#{RUBY_ENGINE}/#{RbConfig::CONFIG['ruby_version']}\"")).chomp
-    @slug_vendor_bundler ||= File.join("vendor", "bundle", "ruby", ruby_version_number.sub(/\d+$/, '0'))
+    @slug_vendor_bundler ||= File.join(VENDOR_DIR, "bundle", "ruby", ruby_version_number.sub(/\d+$/, '0'))
   end
 
   # the relative path to the vendored ruby directory
   # @return [String] resulting path
   def slug_vendor_ruby
-    "vendor/#{ruby_version}"
+    "#{VENDOR_DIR}/#{ruby_version}"
   end
 
   # the absolute path of the build ruby to use during the buildpack
@@ -88,33 +160,23 @@ private
     return @ruby_version if @ruby_version_run
 
     @ruby_version_run = true
+    @ruby_version = lockfile_parser.ruby_version.chomp.sub(/p\d+$/, '').sub(' ', '-')
+    return @ruby_version if @ruby_version =~ /(\w+-)?\d\.\d\.\d/
 
-    bootstrap_bundler do |bundler_path|
-      #@ruby_version = lockfile_parser.ruby_version.chomp.sub(/p\d+$/, '')
-      #puts "RUBY IS #{@ruby_version}"
-      ruby_path = File.dirname(`which ruby`)
-      old_system_path = "#{ruby_path}:/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin"
-      #@ruby_version = run_stdout("env PATH=#{old_system_path}:#{bundler_path}/bin GEM_PATH=#{bundler_path} bundle platform --ruby").chomp
-      @ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp.sub(/p\d+$/, '')
-    end
-
-    if @ruby_version == "No ruby version specified" && ENV['RUBY_VERSION']
-      # for backwards compatibility.
-      # this will go away in the future
+    if ENV['RUBY_VERSION'] && (@ruby_version == "No ruby version specified" || @ruby_version.nil?)
       @ruby_version = ENV['RUBY_VERSION']
       @ruby_version_env_var = true
-    elsif @ruby_version == "No ruby version specified"
-      @ruby_version = nil
     else
-      @ruby_version = @ruby_version.sub('(', '').sub(')', '').split.join('-')
-      @ruby_version_env_var = false
+      bootstrap_bundler do |bundler_path|
+        @ruby_version = run_stdout("GEM_PATH=#{bundler_path} #{bundler_path}/bin/bundle platform --ruby").chomp.sub(/p\d+$/, '')
+      end
     end
 
     @ruby_version
   end
 
   def ruby_version_number
-    ruby_version.split('-').last
+    ruby_version.split(/[- ]/).last
   end
 
   # bootstraps bundler so we can pull the ruby version
@@ -146,23 +208,6 @@ private
     set_env_override "PATH",     "$HOME/bin:$HOME/#{slug_vendor_bundler}/bin:$PATH"
   end
 
-  # install the vendored ruby
-  # @return [Boolean] true if it installs the vendored ruby and false otherwise
-  def install_ruby
-    FileUtils.mkdir_p("vendor")
-    run("cp -R #{build_ruby_path} vendor/#{ruby_version}")
-
-    bin_dir = "bin"
-    FileUtils.mkdir_p bin_dir
-    Dir["#{slug_vendor_ruby}/bin/*"].each do |bin_in_vendor|
-      run("ln -s ../#{bin_in_vendor} #{bin_dir}/")
-    end
-
-    topic "Using Ruby version: #{ruby_version} (test: #{`#{bin_dir}/ruby -v`})"
-
-    true
-  end
-
   # find the ruby install path for its binstubs during build
   # @return [String] resulting path or empty string if ruby is not vendored
   def ruby_install_binstub_path
@@ -183,6 +228,52 @@ private
     ENV["PATH"] = "#{ruby_install_binstub_path}:#{ENV["PATH"]}"
     #puts "setup_ruby_install_env: #{ruby_install_libstub_path}"
     ENV["LD_LIBRARY_PATH"] = "#{File.expand_path(ruby_install_libstub_path)}:#{ENV["LD_LIBRARY_PATH"]}"
+  end
+
+  # detects if a gem is in the bundle.
+  # @param [String] name of the gem in question
+  # @return [String, nil] if it finds the gem, it will return the line from bundle show or nil if nothing is found.
+  def gem_is_bundled?(gem)
+    @bundler_gems ||= lockfile_parser.specs.map(&:name)
+    @bundler_gems.include?(gem)
+  end
+
+  # add bundler to the load path
+  # @note it sets a flag, so the path can only be loaded once
+  def add_bundler_to_load_path
+    return if @bundler_loadpath
+    $: << File.expand_path(Dir["#{slug_vendor_bundler}/lib"].first)
+    @bundler_loadpath = true
+  end
+
+  # setup the lockfile parser
+  # @return [Bundler::LockfileParser] a Bundler::LockfileParser
+  def lockfile_parser
+    # add_bundler_to_load_path
+    require "bundler"
+    @lockfile_parser ||= Bundler::LockfileParser.new(File.read("Gemfile.lock"))
+  end
+
+  # detects if a rake task is defined in the app
+  # @param [String] the task in question
+  # @return [Boolean] true if the rake task is defined in the app
+  def rake_task_defined?(task)
+    run("env PATH=$PATH bundle exec rake #{task} --dry-run") && $?.success?
+  end
+
+  # executes the block with GIT_DIR environment variable removed since it can mess with the current working directory git thinks it's in
+  # @param [block] block to be executed in the GIT_DIR free context
+  def allow_git(&blk)
+    git_dir = ENV.delete("GIT_DIR") # can mess with bundler
+    blk.call
+    ENV["GIT_DIR"] = git_dir
+  end
+
+  # decides if we need to install the node.js binary
+  # @note execjs will blow up if no JS RUNTIME is detected and is loaded.
+  # @return [Array] the node.js binary path if we need it or an empty Array
+  def add_node_js_binary
+    gem_is_bundled?('execjs') ? [NODE_JS_BINARY_PATH] : []
   end
 
   # list of default gems to vendor into the slug
@@ -223,107 +314,6 @@ private
       puts  "`bundle pack` instead."
       FileUtils.rm_rf("vendor/bundle")
     end
-  end
-
-  # runs bundler to install the dependencies
-  def build_bundler
-    log("bundle") do
-      puts run("#{slug_vendor_ruby}/bin/gem install bundler -v=#{BUNDLER_VERSION} --no-document")
-
-      bundle_without = ENV["BUNDLE_WITHOUT"] || "development:test"
-      bundle_command = "#{slug_vendor_ruby}/bin/bundle install --without #{bundle_without} --path vendor/bundle --binstubs bin/"
-
-      unless File.exist?("Gemfile.lock")
-        error "Gemfile.lock is required. Please run \"bundle install\" locally\nand commit your Gemfile.lock."
-      end
-
-      # using --deployment is preferred if we can
-      bundle_command += " --deployment"
-      cache_load ".bundle"
-
-      version = run("env #{slug_vendor_ruby}/bin/bundle version").strip
-      topic("Installing dependencies using bundler #{version}")
-
-      cache_load "vendor/bundle"
-
-      bundler_output = ""
-      Dir.mktmpdir("libyaml-") do |tmpdir|
-        libyaml_dir = "#{tmpdir}/#{LIBYAML_PATH}"
-        install_libyaml(libyaml_dir)
-
-        # need to setup compile environment for the psych gem
-        yaml_include   = File.expand_path("#{libyaml_dir}/include")
-        yaml_lib       = File.expand_path("#{libyaml_dir}/lib")
-        pwd            = run("pwd").chomp
-        # we need to set BUNDLE_CONFIG and BUNDLE_GEMFILE for
-        # codon since it uses bundler.
-        env_vars       = "env BUNDLE_GEMFILE=#{pwd}/Gemfile BUNDLE_CONFIG=#{pwd}/.bundle/config CPATH=#{yaml_include}:$CPATH CPPATH=#{yaml_include}:$CPPATH LIBRARY_PATH=#{yaml_lib}:$LIBRARY_PATH"
-        puts "Running: #{bundle_command}"
-        bundler_output << pipe("#{env_vars} #{bundle_command} --no-clean 2>&1")
-
-      end
-
-      if $?.success?
-        log "bundle", :status => "success"
-        puts "Cleaning up the bundler cache."
-        run "bundle clean"
-        cache_store ".bundle"
-        cache_store "vendor/bundle"
-
-        # Keep gem cache out of the slug
-        FileUtils.rm_rf("#{slug_vendor_bundler}/cache")
-      else
-        log "bundle", :status => "failure"
-        error_message = "Failed to install gems via Bundler."
-        error error_message
-      end
-    end
-  end
-
-  # add bundler to the load path
-  # @note it sets a flag, so the path can only be loaded once
-  def add_bundler_to_load_path
-    return if @bundler_loadpath
-    $: << File.expand_path(Dir["#{slug_vendor_bundler}/lib"].first)
-    @bundler_loadpath = true
-  end
-
-  # detects if a gem is in the bundle.
-  # @param [String] name of the gem in question
-  # @return [String, nil] if it finds the gem, it will return the line from bundle show or nil if nothing is found.
-  def gem_is_bundled?(gem)
-    @bundler_gems ||= lockfile_parser.specs.map(&:name)
-    @bundler_gems.include?(gem)
-  end
-
-  # setup the lockfile parser
-  # @return [Bundler::LockfileParser] a Bundler::LockfileParser
-  def lockfile_parser
-    add_bundler_to_load_path
-    require "bundler"
-    @lockfile_parser ||= Bundler::LockfileParser.new(File.read("Gemfile.lock"))
-  end
-
-  # detects if a rake task is defined in the app
-  # @param [String] the task in question
-  # @return [Boolean] true if the rake task is defined in the app
-  def rake_task_defined?(task)
-    run("env PATH=$PATH bundle exec rake #{task} --dry-run") && $?.success?
-  end
-
-  # executes the block with GIT_DIR environment variable removed since it can mess with the current working directory git thinks it's in
-  # @param [block] block to be executed in the GIT_DIR free context
-  def allow_git(&blk)
-    git_dir = ENV.delete("GIT_DIR") # can mess with bundler
-    blk.call
-    ENV["GIT_DIR"] = git_dir
-  end
-
-  # decides if we need to install the node.js binary
-  # @note execjs will blow up if no JS RUNTIME is detected and is loaded.
-  # @return [Array] the node.js binary path if we need it or an empty Array
-  def add_node_js_binary
-    gem_is_bundled?('execjs') ? [NODE_JS_BINARY_PATH] : []
   end
 
   def run_assets_precompile_rake_task
