@@ -18,6 +18,7 @@ class LanguagePack::Ruby < LanguagePack::Base
   # detects if this is a valid Ruby app
   # @return [Boolean] true if it's a Ruby app
   def self.use?
+    topic `pwd; ls -l`
     File.exist?("Gemfile")
   end
 
@@ -65,7 +66,6 @@ private
     FileUtils.mkdir_p(VENDOR_DIR)
     run("cp -R #{build_ruby_path} #{VENDOR_DIR}/#{ruby_version}")
     topic "cp -R #{build_ruby_path} #{VENDOR_DIR}/#{ruby_version}"
-    topic `ls /opt/ruby/3.0.2/bin`
 
     FileUtils.mkdir_p BIN_DIR
     Dir["#{slug_vendor_ruby}/bin/*"].each do |bin_in_vendor|
