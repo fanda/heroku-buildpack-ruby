@@ -64,8 +64,8 @@ private
   def install_ruby
     FileUtils.mkdir_p(VENDOR_DIR)
     run("cp -R #{build_ruby_path} #{VENDOR_DIR}/#{ruby_version}")
-    puts "cp -R #{build_ruby_path} #{VENDOR_DIR}/#{ruby_version}"
-    puts `ls /opt/ruby/3.0.2/bin`
+    topic "cp -R #{build_ruby_path} #{VENDOR_DIR}/#{ruby_version}"
+    topic `ls /opt/ruby/3.0.2/bin`
 
     FileUtils.mkdir_p BIN_DIR
     Dir["#{slug_vendor_ruby}/bin/*"].each do |bin_in_vendor|
